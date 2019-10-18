@@ -76,6 +76,7 @@ function gui(;timerInterval::AbstractFloat=1/60)
     # @assert default_font != C_NULL
 
     image_id = nothing
+    image_id_proc = nothing
     previewImageWidth = nothing
     previewImageHeight = nothing
 
@@ -86,6 +87,7 @@ function gui(;timerInterval::AbstractFloat=1/60)
 
     clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
     previousSize = nothing
+    previousProcSize = (0, 0)
     looptime = 0.0
     guiTimer = Timer(0,interval=timerInterval)
     firstLoop = true
@@ -93,6 +95,7 @@ function gui(;timerInterval::AbstractFloat=1/60)
         t_before = time()
         if camImage != nothing
             local_camImage = deepcopy(camImage) #Create copy to prevent async error if size is read at different time to image
+            proc_camImage = 0xffff .- local_camImage
             io = CImGui.GetIO()
 
             GLFW.PollEvents()
@@ -128,7 +131,7 @@ function gui(;timerInterval::AbstractFloat=1/60)
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED)
                 previousSize = camImageSize
             end
-            ImGui_ImplOpenGL3_UpdateImageTexture(image_id, local_camImage, camImageSize[1], camImageSize[2],format=GL_RED, type=GL_UNSIGNED_BYTE)
+            ImGui_ImplOpenGL3_UpdateImageTexture(image_id, local_camImage, camImageSize[1], camImageSize[2],format=GL_RED, type=GL_UNSIGNED_SHORT)
             if previewWindowAspect > camImageAspect
                 previewImageHeight = previewWindowHeight
                 previewImageWidth = previewImageHeight * camImageAspect
@@ -158,6 +161,54 @@ function gui(;timerInterval::AbstractFloat=1/60)
 
             CImGui.End()
 
+            # Processed image
+            CImGui.Begin("Processed Image")
+            processedWindowWidth = CImGui.GetWindowWidth() - 20
+            processedWindowHeight = CImGui.GetWindowHeight() - 40 # subtracting top bar
+            processedWindowAspect = processedWindowWidth / processedWindowHeight
+
+            pos = CImGui.GetCursorScreenPos()
+
+
+            procImageSize = size(proc_camImage)
+            procImageAspect = procImageSize[1]/procImageSize[2]
+
+            if procImageSize != previousProcSize || firstLoop # creat texture for image drawing
+                image_id_proc = ImGui_ImplOpenGL3_CreateImageTexture(procImageSize[1], procImageSize[2])
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED)
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED)
+                previousProcSize = procImageSize
+            end
+            ImGui_ImplOpenGL3_UpdateImageTexture(image_id_proc, proc_camImage, procImageSize[1], procImageSize[2],format=GL_RED, type=GL_UNSIGNED_SHORT)
+            if processedWindowAspect > procImageAspect
+                processedImageHeight = processedWindowHeight
+                processedImageWidth = processedImageHeight * procImageAspect
+            else
+                processedImageWidth = processedWindowWidth
+                processedImageHeight = processedImageWidth / procImageAspect
+            end
+            CImGui.Image(Ptr{Cvoid}(image_id_proc), (Cfloat(processedImageWidth), Cfloat(processedImageHeight)))
+            if CImGui.IsItemHovered()
+                CImGui.BeginTooltip()
+                region_sz = 32.0
+
+                region_x = io.MousePos.x - pos.x - region_sz * 0.5
+                region_x = clamp(region_x,0.0,processedImageWidth - region_sz)
+
+                region_y = io.MousePos.y - pos.y - region_sz * 0.5
+                region_y = clamp(region_y,0.0,processedImageHeight - region_sz)
+
+                zoom = 4.0
+                #CImGui.Text(@sprintf("Min: (%d, %d)", region_x, region_y))
+                #CImGui.Text(@sprintf("Max: (%d, %d)", region_x + region_sz, region_y + region_sz))
+                uv0 = ImVec2(region_x / processedImageWidth, region_y / processedImageHeight)
+                uv1 = ImVec2((region_x + region_sz) / processedImageWidth, (region_y + region_sz) / processedImageHeight)
+                CImGui.Image(Ptr{Cvoid}(image_id), ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, (255,255,255,255), (255,255,255,128))
+                CImGui.EndTooltip()
+            end
+
+            CImGui.End()
+ 
             # rendering
             CImGui.Render()
             GLFW.MakeContextCurrent(window)

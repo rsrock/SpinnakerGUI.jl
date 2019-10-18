@@ -14,6 +14,9 @@ function cam_init(;camid::Int64=0,silent=false,bufferMode="NewestOnly")
         !silent && (@info "Switching to continuous mode")
         acquisitionmode!(cam,"Continuous")
         triggermode!(cam,"Off")
+        !silent && (@info "Switching to Video Mode 7, 16 bit")
+        Spinnaker.set!(Spinnaker.SpinEnumNode(cam, "VideoMode"), "Mode7")
+        pixelformat!(cam, "Mono16")
         !silent && (@info "Reading settings from camera")
         camSettingsRead!(cam,camSettings)
         camSettingsLimitsRead!(cam,camSettingsLimits)
@@ -79,7 +82,7 @@ function runCamera()
     global sessionStat
     global camImageFrameBuffer
 
-    camImage = Array{UInt8}(undef,camSettings.width,camSettings.height)
+    camImage = Array{UInt16}(undef,camSettings.width,camSettings.height)
 
     startcheckrunningfix!(cam,bufferMode="OldestFirst")
     camSettingsLimitsRead!(cam,camSettingsLimits) #some things change once running
@@ -89,7 +92,7 @@ function runCamera()
     while !sessionStat.terminate
         if isrunning(cam)
             if sessionStat.resolutionupdate
-                camImage = Array{UInt8}(undef,camSettings.width,camSettings.height)
+                camImage = Array{UInt16}(undef,camSettings.width,camSettings.height)
                 sessionStat.resolutionupdate = false
             end
             try

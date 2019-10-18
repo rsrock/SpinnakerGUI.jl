@@ -25,7 +25,7 @@ function videowritelistener(;compression=0,overwrite=false,threads=0)
             if (h % 2 != 0) || (w % 2 != 0)
                 @info "Image dims for H264 video encoding need to be even ($h x $w)"
                 sessionStat.recording = false
-                camImageFrameBuffer = Vector{Array{UInt8}}(undef,0)
+                camImageFrameBuffer = Vector{Array{UInt16}}(undef,0)  # can take 16 bits here?
                 sessionStat.bufferedframes = 0
             else
                 fps = camSettings.acquisitionFramerate

@@ -30,7 +30,7 @@ end
 
 # global image buffers
 camImage = nothing
-camImageFrameBuffer = Vector{Array{UInt8}}(undef,0)
+camImageFrameBuffer = Vector{Array{UInt16}}(undef,0)
 
 # GUI settings
 gui_open = nothing
@@ -53,7 +53,7 @@ function start(;camid::Int64=0,recordthreads=0,reccompression=0)
     sessionStat.savedframes = 0
     sessionStat.bufferedframes = 0
     sessionStat.droppedframes = 0
-    camImageFrameBuffer = Vector{Array{UInt8}}(undef,0)
+    camImageFrameBuffer = Vector{Array{UInt16}}(undef,0)
 
     cam = cam_init(camid=camid)
 
